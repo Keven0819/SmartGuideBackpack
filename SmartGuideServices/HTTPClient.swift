@@ -9,7 +9,7 @@ import Foundation
 
 public struct HTTPClient {
     public static let shared = HTTPClient()
-    private let baseURL = URL(string: "https://45941f9929f0.ngrok-free.app")!
+    private let baseURL = URL(string: "https://4d3de023f1b3.ngrok-free.app")!
     
     public func post(path: String, body: Data) async throws -> Data {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))

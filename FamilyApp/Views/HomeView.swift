@@ -15,47 +15,59 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // 地圖顯示
                 if vm.targetCoordinate != nil {
                     MapView(targetCoordinate: $vm.targetCoordinate)
                         .edgesIgnoringSafeArea(.all)
                 } else {
-                    Text("等待視障者位置…")
+                    Text("等待定位...")
                         .foregroundColor(.gray)
                 }
 
-                // SOS 警示浮層
-                if let sosMsg = vm.sosMessage {
+                if let sosAddress = vm.sosAddress {
                     VStack {
                         Spacer()
-                        VStack(spacing: 10) {
-                            Text("⚠️ 緊急求救 ⚠️")
-                                .font(.headline)
-                                .foregroundColor(.red)
-                            Text(sosMsg)
-                                .font(.subheadline)
+
+                        VStack(spacing: 14) {
+                            Text("SOS 警報")
+                                .font(.title2)
+                                .bold()
                                 .foregroundColor(.white)
-                            Button(action: {
-                                vm.clearSOSAlert()
-                            }) {
-                                Text("確認")
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                                    .background(Color.white.opacity(0.8))
-                                    .cornerRadius(8)
+
+                            Text(sosAddress)
+                                .font(.body)
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
+
+                            Button(action: vm.clearSOSAlert) {
+                                Text("清除警報")
+                                    .font(.headline)
+                                    .foregroundColor(.red)
+                                    .padding(.horizontal, 30)
+                                    .padding(.vertical, 12)
+                                    .background(Color.white)
+                                    .cornerRadius(25)
+                                    .shadow(radius: 5)
                             }
                         }
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.red.opacity(0.85))
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.red.opacity(0.9))
+                                .shadow(radius: 10)
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 40)
+                        .transition(.scale.combined(with: .opacity))
+                        .animation(.easeInOut, value: vm.sosAddress)
                     }
                 }
             }
-            .onAppear {
-                vm.startPolling()       // 定位輪詢
-                vm.startSOSPolling()    // SOS 輪詢
-            }
             .navigationTitle("視障者定位")
+            .onAppear {
+                vm.startPolling()
+                vm.startSOSPolling()
+            }
         }
     }
 }

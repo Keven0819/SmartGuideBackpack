@@ -6,25 +6,31 @@
 //
 
 import Foundation
+import Combine
 import CoreLocation
 import SmartGuideServices
 
 class MainViewModel: ObservableObject {
-    @Published var coordinateString = "讀取中…"
+    @Published var currentAddress: String? = "讀取中…"
     @Published var uploadStatus: String? = nil
+    
+    private var cancellables = Set<AnyCancellable>()
     private var timer: Timer?
+
+    init() {
+        // 訂閱 LocationService 的 address 改變
+        LocationService.shared.$address
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newAddress in
+                self?.currentAddress = newAddress ?? "無法取得地址"
+            }
+            .store(in: &cancellables)
+    }
 
     func startUpdating() {
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
             Task {
                 await self.sendLocation()
-            }
-            if let coord = LocationService.shared.coordinate,
-               let heading = LocationService.shared.heading?.trueHeading {
-                DispatchQueue.main.async {
-                    self.coordinateString =
-                        "Lat:\(coord.latitude)\nLon:\(coord.longitude)\nHeading:\(Int(heading))°"
-                }
             }
         }
     }
@@ -34,7 +40,6 @@ class MainViewModel: ObservableObject {
               let heading = LocationService.shared.heading?.trueHeading else {
             DispatchQueue.main.async {
                 self.uploadStatus = "定位或方位資料缺失，無法上傳"
-                print(self.uploadStatus)
             }
             return
         }
@@ -44,25 +49,16 @@ class MainViewModel: ObservableObject {
             "longitude": coord.longitude,
             "heading": heading
         ]
+
         do {
             let data = try JSONSerialization.data(withJSONObject: payload)
-            let responseData = try await HTTPClient.shared.post(path: "/location/update", body: data)
-
-            if let responseString = String(data: responseData, encoding: .utf8) {
-                DispatchQueue.main.async {
-                    self.uploadStatus = "位置上傳成功: \(responseString)"
-                    print(self.uploadStatus)
-                }
-            } else {
-                DispatchQueue.main.async {
-                    self.uploadStatus = "位置上傳成功"
-                    print(self.uploadStatus)
-                }
+            _ = try await HTTPClient.shared.post(path: "/location/update", body: data)
+            DispatchQueue.main.async {
+                self.uploadStatus = "位置上傳成功"
             }
         } catch {
             DispatchQueue.main.async {
                 self.uploadStatus = "上傳失敗: \(error.localizedDescription)"
-                print(self.uploadStatus)
             }
         }
     }
@@ -71,7 +67,6 @@ class MainViewModel: ObservableObject {
         guard let coord = LocationService.shared.coordinate else {
             DispatchQueue.main.async {
                 self.uploadStatus = "定位資料缺失，無法發送 SOS"
-                print(self.uploadStatus)
             }
             return
         }
@@ -82,7 +77,6 @@ class MainViewModel: ObservableObject {
         do {
             let data = try JSONSerialization.data(withJSONObject: payload)
             _ = try await HTTPClient.shared.post(path: "/sos", body: data)
-
             DispatchQueue.main.async {
                 self.uploadStatus = "SOS 已發送"
                 NotificationService.shared.scheduleLocalNotification(
@@ -93,12 +87,12 @@ class MainViewModel: ObservableObject {
         } catch {
             DispatchQueue.main.async {
                 self.uploadStatus = "發送 SOS 失敗: \(error.localizedDescription)"
-                print(self.uploadStatus)
             }
         }
     }
 
     deinit {
         timer?.invalidate()
+        cancellables.forEach { $0.cancel() }
     }
 }
