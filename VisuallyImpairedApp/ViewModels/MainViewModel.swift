@@ -11,12 +11,30 @@ import CoreLocation
 import SmartGuideServices
 
 class MainViewModel: ObservableObject {
+    
+    // MARK: -- Published 屬性
+    
     @Published var currentAddress: String? = "讀取中…"
     @Published var uploadStatus: String? = nil
+    
+    // MARK: -- 私有屬性
     
     private var cancellables = Set<AnyCancellable>()
     private var timer: Timer?
 
+    // MARK: -- HTTP 客戶端
+    
+    // 自己測試寫的更新位置和 SOS 收發的 API
+    let Location_SOS_Client = HTTPClient(baseURL: URL(string: "https://smart-guide-backend-qg7d1ygqq-keven0819s-projects.vercel.app")!)
+    
+    // 茗萱寫的 GPS SOS 和 STT 系統 API
+    let GPS_SOS_Client = HTTPClient(baseURL: URL(string: "gps_sos")!)
+    
+    // 郁秀寫的導航系統 API
+    let GPS_Guide_Client = HTTPClient(baseURL: URL(string: "gps_guide")!)
+    
+    // MARK: -- 初始化與訂閱
+    
     init() {
         // 訂閱 LocationService 的 address 改變
         LocationService.shared.$address
@@ -27,6 +45,8 @@ class MainViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    // MARK: -- 定位更新
+    
     func startUpdating() {
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
             Task {
@@ -52,7 +72,7 @@ class MainViewModel: ObservableObject {
 
         do {
             let data = try JSONSerialization.data(withJSONObject: payload)
-            _ = try await HTTPClient.shared.post(path: "/location/update", body: data)
+            _ = try await Location_SOS_Client.post(path: "/location/update", body: data)
             DispatchQueue.main.async {
                 self.uploadStatus = "位置上傳成功"
             }
@@ -62,7 +82,10 @@ class MainViewModel: ObservableObject {
             }
         }
     }
-
+    
+    // MARK: -- SOS 功能
+    
+    // 我自己的 SOS 發送功能
     func sendSOS() async {
         guard let coord = LocationService.shared.coordinate else {
             DispatchQueue.main.async {
@@ -76,7 +99,7 @@ class MainViewModel: ObservableObject {
         ]
         do {
             let data = try JSONSerialization.data(withJSONObject: payload)
-            _ = try await HTTPClient.shared.post(path: "/sos", body: data)
+            _ = try await Location_SOS_Client.post(path: "/sos", body: data)
             DispatchQueue.main.async {
                 self.uploadStatus = "SOS 已發送"
                 NotificationService.shared.scheduleLocalNotification(
@@ -91,6 +114,7 @@ class MainViewModel: ObservableObject {
         }
     }
 
+    // MARK: -- 清理
     deinit {
         timer?.invalidate()
         cancellables.forEach { $0.cancel() }

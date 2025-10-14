@@ -10,7 +10,12 @@ import CoreLocation
 import SmartGuideServices
 
 struct MainView: View {
+    
+    // MARK: - ViewModel
+    
     @StateObject private var vm = MainViewModel()
+    
+    // MARK: - Particle Model
     
     struct Particle: Identifiable, Equatable {
         let id = UUID()
@@ -25,6 +30,8 @@ struct MainView: View {
         }
     }
     
+    // MARK: - Particle System State
+    
     @State private var particles: [Particle] = (0..<80).map { _ in
         Particle(
             x: CGFloat.random(in: 0...1),
@@ -34,6 +41,8 @@ struct MainView: View {
             opacity: Double.random(in: 0.3...0.8)
         )
     }
+    
+    // MARK: - Main View
     
     var body: some View {
         ZStack {
@@ -142,6 +151,8 @@ struct MainView: View {
     }
 }
 
+// MARK: - Status View
+
 struct StatusView: View {
     let status: String
     
@@ -176,6 +187,8 @@ struct StatusView: View {
         .transition(.move(edge: .bottom))
     }
 }
+
+// MARK: - SOS Button
 
 struct SOSButton: View {
     let action: () -> Void

@@ -9,7 +9,12 @@ import SwiftUI
 import MapKit
 
 struct MapView: UIViewRepresentable {
+    
+    // MARK: - Properties
+    
     @Binding var targetCoordinate: CLLocationCoordinate2D?
+    
+    // MARK: - Coordinator
     
     class Coordinator: NSObject, MKMapViewDelegate {
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
@@ -60,6 +65,8 @@ struct MapView: UIViewRepresentable {
         }
     }
     
+    // MARK: - UIViewRepresentable
+    
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
@@ -96,6 +103,8 @@ struct MapView: UIViewRepresentable {
         }
     }
 }
+
+// MARK: - MKMapViewDelegate
 
 // 同步覆蓋物樣式
 extension MapView.Coordinator {

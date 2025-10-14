@@ -10,8 +10,13 @@ import SmartGuideServices
 import CoreLocation
 
 struct HomeView: View {
+    
+    // MARK: - ViewModel
+    
     @StateObject private var vm = FamilyViewModel()
 
+    // MARK: - Main View
+    
     var body: some View {
         NavigationView {
             ZStack {

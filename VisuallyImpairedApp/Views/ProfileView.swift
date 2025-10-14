@@ -9,11 +9,19 @@ import SwiftUI
 import SmartGuideServices
 
 struct ProfileView: View {
+    
+    // MARK: - 使用者資料模型
+    
     @State private var profile = UserProfile(
         name: "", phone: "", hospital: "",
         emergencyContact: EmergencyContact(name: "", phone: "", relation: "")
     )
+    
+    // MARK: - 狀態變數
+    
     @State private var showingSaveAlert = false
+    
+    // MARK: - 主視圖
     
     var body: some View {
         ZStack {
@@ -71,6 +79,8 @@ struct ProfileView: View {
         .onTapGesture { UIApplication.shared.endEditing() }
     }
     
+    // MARK: - 標題
+    
     private var titleView: some View {
         let gradient = LinearGradient(
             colors: [Color.cyan, Color.blue, Color.purple],
@@ -86,6 +96,8 @@ struct ProfileView: View {
             .shadow(color: Color.blue.opacity(0.6), radius: 30, x: 0, y: 0)
             .padding(.top, 40)
     }
+    
+    // MARK: - 儲存按鈕
     
     private var saveButton: some View {
         let buttonGradient = LinearGradient(
@@ -112,6 +124,8 @@ struct ProfileView: View {
         .accessibilityHint(isProfileValid() ? "點擊儲存您的設定" : "請填寫必要欄位後才能儲存")
     }
     
+    // MARK: - 資料處理
+    
     private func isProfileValid() -> Bool {
         !profile.name.isEmpty &&
         !profile.phone.isEmpty &&
@@ -133,6 +147,8 @@ struct ProfileView: View {
         }
     }
 }
+
+// MARK: - GlassTextField
 
 struct GlassTextField: View {
     let title: String
@@ -165,6 +181,8 @@ struct GlassTextField: View {
             .shadow(color: Color.cyan.opacity(0.4), radius: 8, x: 0, y: 0)
     }
 }
+
+// MARK: - UserProfile Model
 
 extension UIApplication {
     func endEditing() {

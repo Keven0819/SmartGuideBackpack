@@ -8,7 +8,12 @@
 import UserNotifications
 
 public class NotificationService {
+    
+    // MARK: -- 單例
+    
     public static let shared = NotificationService()
+    
+    // MARK: -- 請求通知權限
     
     public func requestAuthorization() async {
         do {
@@ -19,6 +24,8 @@ public class NotificationService {
             print("Failed to request notification authorization: \(error)")
         }
     }
+    
+    // MARK: -- 本地通知方法
     
     public func scheduleLocalNotification(title: String, body: String) {
         let content = UNMutableNotificationContent()

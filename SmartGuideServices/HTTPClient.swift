@@ -8,8 +8,16 @@
 import Foundation
 
 public struct HTTPClient {
-    public static let shared = HTTPClient()
-    private let baseURL = URL(string: "https://4d3de023f1b3.ngrok-free.app")!
+    
+    // MARK: -- 屬性與初始化
+    
+    private let baseURL: URL
+    
+    public init(baseURL: URL) {
+        self.baseURL = baseURL
+    }
+    
+    // MARK: -- HTTP 方法
     
     public func post(path: String, body: Data) async throws -> Data {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
