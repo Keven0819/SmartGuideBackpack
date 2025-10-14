@@ -136,7 +136,10 @@ struct MainView: View {
                 }
                 
                 SOSButton {
-                    Task { await vm.sendSOS() }
+                    Task {
+                        await vm.sendSOS()
+                        await vm.sendSOSToGPSSOSButton()
+                    }
                 }
                 .padding(.top, 12)
                 

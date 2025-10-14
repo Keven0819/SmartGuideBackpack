@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import SmartGuideServices
 
 @main
 struct VisuallyImpairedAppApp: App {
@@ -34,6 +35,9 @@ struct VisuallyImpairedAppApp: App {
             TabView {
                 NavigationStack {
                     MainView()
+                        .task {
+                            await NotificationService.shared.requestAuthorization()
+                        }
                 }
                 .tabItem {
                     Label("首頁", systemImage: "house.fill")

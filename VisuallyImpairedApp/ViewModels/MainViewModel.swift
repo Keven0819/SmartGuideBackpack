@@ -28,7 +28,7 @@ class MainViewModel: ObservableObject {
     let Location_SOS_Client = HTTPClient(baseURL: URL(string: "https://smart-guide-backend-beta.vercel.app")!)
     
     // 茗萱寫的 GPS SOS 和 STT 系統 API
-    let GPS_SOS_Client = HTTPClient(baseURL: URL(string: "gps_sos")!)
+    let GPS_SOS_Client = HTTPClient(baseURL: URL(string: "https://gps-sos-backend.onrender.com")!)
     
     // 郁秀寫的導航系統 API
     let GPS_Guide_Client = HTTPClient(baseURL: URL(string: "gps_guide")!)
@@ -48,7 +48,7 @@ class MainViewModel: ObservableObject {
     // MARK: -- 定位更新
     
     func startUpdating() {
-        timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
             Task {
                 await self.sendLocation()
             }
@@ -110,6 +110,41 @@ class MainViewModel: ObservableObject {
         } catch {
             DispatchQueue.main.async {
                 self.uploadStatus = "發送 SOS 失敗: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    // MARK: -- 針對後端 /sos/button 的 SOS 發送
+    
+    func sendSOSToGPSSOSButton() async {
+        guard let coord = LocationService.shared.coordinate else {
+            DispatchQueue.main.async {
+                self.uploadStatus = "定位資料缺失，無法發送 SOS"
+            }
+            return
+        }
+
+        // 若後端期待 OptionalLocationRequest 的 JSON 結構 (latitude, longitude)
+        let payload: [String: Any] = [
+            "latitude": coord.latitude,
+            "longitude": coord.longitude
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(withJSONObject: payload)
+            // ✅ 使用對應到你 FastAPI 的 client（確保 baseURL 指向後端）
+            _ = try await GPS_SOS_Client.post(path: "/sos/button", body: data)
+            
+            DispatchQueue.main.async {
+                self.uploadStatus = "SOS 已發送（GPS_SOS）"
+                NotificationService.shared.scheduleLocalNotification(
+                    title: "SOS 已發送",
+                    body: "緊急求救訊息已傳送（GPS_SOS）"
+                )
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.uploadStatus = "發送 SOS（GPS_SOS）失敗: \(error.localizedDescription)"
             }
         }
     }
