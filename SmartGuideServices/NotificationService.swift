@@ -7,7 +7,7 @@
 
 import UserNotifications
 
-public class NotificationService {
+public class NotificationService: NSObject {
     
     // MARK: -- 單例
     
@@ -36,5 +36,22 @@ public class NotificationService {
                                         content: content,
                                         trigger: trigger)
         UNUserNotificationCenter.current().add(req)
+    }
+}
+
+// MARK: -- UNUserNotificationCenterDelegate
+
+extension NotificationService: UNUserNotificationCenterDelegate {
+    public func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                       didReceive response: UNNotificationResponse,
+                                       withCompletionHandler completionHandler: @escaping () -> Void) {
+        print("Notification tapped: \(response.notification.request.content.title)")
+        completionHandler()
+    }
+    
+    public func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                       willPresent notification: UNNotification,
+                                       withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
     }
 }
