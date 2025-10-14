@@ -25,7 +25,7 @@ class MainViewModel: ObservableObject {
     // MARK: -- HTTP 客戶端
     
     // 自己測試寫的更新位置和 SOS 收發的 API
-    let Location_SOS_Client = HTTPClient(baseURL: URL(string: "https://smart-guide-backend-qg7d1ygqq-keven0819s-projects.vercel.app")!)
+    let Location_SOS_Client = HTTPClient(baseURL: URL(string: "https://smart-guide-backend-beta.vercel.app")!)
     
     // 茗萱寫的 GPS SOS 和 STT 系統 API
     let GPS_SOS_Client = HTTPClient(baseURL: URL(string: "gps_sos")!)
