@@ -10,7 +10,7 @@ import UserNotifications
 import SmartGuideServices
 
 @main
-struct FamilyAppApp: App {
+struct FamilyApp: App {
     
     // 強引用
     private let notificationService = NotificationService.shared
