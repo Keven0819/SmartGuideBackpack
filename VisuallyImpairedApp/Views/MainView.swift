@@ -141,7 +141,7 @@ struct MainView: View {
                 
                 // 新增導航狀態顯示區塊
                 if let navSignal = vm.navigationSignal {
-                    Text("導航狀態: \(navSignal)")
+                    Text((navSignal == "sos" ? "緊急訊號：" : "導航狀態：") + navSignal)
                         .font(.headline)
                         .foregroundColor(navSignal == "sos" ? .red : .yellow)
                         .padding()
@@ -149,9 +149,9 @@ struct MainView: View {
                         .cornerRadius(10)
                         .padding(.horizontal)
                         .transition(.opacity)
-                        .accessibilityValue("導航狀態")
+                        .accessibilityLabel(navSignal == "sos" ? "緊急訊號" : "導航狀態")
                         .accessibilityValue(navSignal)
-                        .accessibilityHint("目前導航模式訊息")
+                        .accessibilityHint(navSignal == "sos" ? "目前緊急求救訊號" : "目前導航模式訊息")
                 }
                 
                 if let navInstruction = vm.navigationInstruction {

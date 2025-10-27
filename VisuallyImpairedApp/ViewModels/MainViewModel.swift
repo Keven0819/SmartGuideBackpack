@@ -162,6 +162,11 @@ class MainViewModel: ObservableObject {
                 self.stopSendingLocationLoop()
             } else if text == "sos" {
                 self.navigationSignal = text
+                
+                // 新增：非同步呼叫 sendSOS()
+                Task {
+                    await self.sendSOS()
+                }
             } else {
                 if let data = text.data(using: .utf8),
                    let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -201,11 +206,16 @@ class MainViewModel: ObservableObject {
             return
         }
         
+        let formatter = ISO8601DateFormatter()
+            formatter.timeZone = TimeZone(identifier: "UTC")
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let timestamp = formatter.string(from: Date())
+        
         let data: [String: Any] = [
             "lat": coord.latitude,
             "lng": coord.longitude,
             "heading": heading,
-            "timestamp": ISO8601DateFormatter().string(from: Date())
+            "timestamp": timestamp
         ]
         
         do {
