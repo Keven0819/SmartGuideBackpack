@@ -76,6 +76,7 @@ struct MainView: View {
                 .animation(.linear(duration: 0.016), value: particles)
             }
             .allowsHitTesting(false)
+            .accessibilityHidden(true)
             
             VStack(spacing: 20) {
                 Spacer(minLength: 30)
@@ -97,11 +98,14 @@ struct MainView: View {
                 
                 Spacer(minLength: 10)
                 
+                // 目前位置
                 if let address = vm.currentAddress, !address.isEmpty {
                     VStack {
                         Text("當前位置")
                             .font(.headline)
                             .foregroundColor(Color.cyan.opacity(0.8))
+                            .accessibilityLabel("目前位置")
+                            .accessibilityHint("這裡顯示您目前的定位資訊")
                         
                         Text(address)
                             .font(.title3)
@@ -111,6 +115,8 @@ struct MainView: View {
                             .minimumScaleFactor(0.7)
                             .foregroundColor(.white)
                             .padding(.top, 6)
+                            .accessibilityLabel(address)
+                            .accessibilityHint("詳細位置")
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -122,12 +128,45 @@ struct MainView: View {
                     )
                     .padding(.horizontal, 30)
                     .transition(.opacity)
+                    .accessibilityElement(children: .combine)
                 } else {
                     ProgressView("定位中...")
                         .progressViewStyle(CircularProgressViewStyle(tint: Color.cyan))
                         .foregroundColor(.gray)
                         .font(.title3)
                         .padding(.horizontal, 20)
+                        .accessibilityLabel("定位中")
+                        .accessibilityHint("正在取得目前位置")
+                }
+                
+                // 新增導航狀態顯示區塊
+                if let navSignal = vm.navigationSignal {
+                    Text("導航狀態: \(navSignal)")
+                        .font(.headline)
+                        .foregroundColor(navSignal == "sos" ? .red : .yellow)
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(10)
+                        .padding(.horizontal)
+                        .transition(.opacity)
+                        .accessibilityValue("導航狀態")
+                        .accessibilityValue(navSignal)
+                        .accessibilityHint("目前導航模式訊息")
+                }
+                
+                if let navInstruction = vm.navigationInstruction {
+                    Text("導航指令: \(navInstruction)")
+                        .font(.body)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 30)
+                        .padding(.vertical, 10)
+                        .background(Color.black.opacity(0.5))
+                        .cornerRadius(10)
+                        .multilineTextAlignment(.center)
+                        .transition(.opacity)
+                        .accessibilityLabel("導航指令")
+                        .accessibilityValue(navInstruction)
+                        .accessibilityHint("回報目前指令")
                 }
                 
                 if let status = vm.uploadStatus {
@@ -138,7 +177,6 @@ struct MainView: View {
                 SOSButton {
                     Task {
                         await vm.sendSOS()
-                        await vm.sendSOSToGPSSOSButton()
                     }
                 }
                 .padding(.top, 12)
@@ -148,9 +186,20 @@ struct MainView: View {
             .padding(.vertical)
         }
         .onAppear {
-            Task { vm.startUpdating() }
+            Task {
+                vm.startUpdating()
+                
+                // 連線 WebSocket
+                vm.connectWebSocket()
+            }
+        }
+        .onDisappear() {
+            // 離開畫面時關閉 WebSocket
+            vm.disconnectWebSocket()
         }
         .animation(.easeInOut(duration: 0.3), value: vm.uploadStatus)
+        .animation(.easeInOut(duration: 0.3), value: vm.navigationSignal)
+        .animation(.easeInOut(duration: 0.3), value: vm.navigationInstruction)
     }
 }
 
@@ -166,15 +215,18 @@ struct StatusView: View {
                     .resizable()
                     .frame(width: 24, height: 24)
                     .foregroundColor(.green)
+                    .accessibilityLabel("確認")
             } else {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .blue))
                     .frame(width: 24, height: 24)
+                    .accessibilityLabel("執行中")
             }
             
             Text(status)
                 .font(.body)
                 .foregroundColor(status == "位置上傳成功" || status == "SOS 已發送" ? .green : .primary)
+                .accessibilityLabel(status)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -188,6 +240,7 @@ struct StatusView: View {
                 .stroke(Color(.separator), lineWidth: 0.5)
         )
         .transition(.move(edge: .bottom))
+        .accessibilityElement(children: .combine)
     }
 }
 

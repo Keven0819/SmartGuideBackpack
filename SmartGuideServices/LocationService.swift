@@ -33,7 +33,9 @@ public class LocationService: NSObject, CLLocationManagerDelegate, ObservableObj
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let coord = locations.last?.coordinate else { return }
         coordinate = coord
-        reverseGeocodeIfNeeded(coord)
+        reverseGeocodeIfNeeded(coord) { address in
+            self.address = address
+        }
     }
     
     public func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
@@ -51,32 +53,35 @@ public class LocationService: NSObject, CLLocationManagerDelegate, ObservableObj
     }
     
     // MARK: -- 反向地理編碼節流
-    private func reverseGeocodeIfNeeded(_ coordinate: CLLocationCoordinate2D) {
+    public func reverseGeocodeIfNeeded(
+        _ coordinate: CLLocationCoordinate2D,
+        completion: @escaping (String?) -> Void
+    ) {
         let now = Date()
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        
-        // 節流：10 秒內或 50 公尺內不重查
-        if now.timeIntervalSince(lastGeocodeTime) < 10 { return }
-        if let last = lastCoordinate, last.distance(from: location) < 50 { return }
-        
+        if now.timeIntervalSince(lastGeocodeTime) < 10 {
+            completion(self.address)
+            return
+        }
+        if let last = lastCoordinate, last.distance(from: location) < 50 {
+            completion(self.address)
+            return
+        }
         lastGeocodeTime = now
         lastCoordinate = location
-        
+
         if geocoder.isGeocoding { geocoder.cancelGeocode() }
-        
         geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, error in
             DispatchQueue.main.async {
+                let addr: String?
                 if let placemark = placemarks?.first {
-                    let addr = [placemark.country,
-                                placemark.administrativeArea,
-                                placemark.locality,
-                                placemark.thoroughfare,
-                                placemark.subThoroughfare]
+                    addr = [placemark.country, placemark.administrativeArea, placemark.locality, placemark.thoroughfare, placemark.subThoroughfare]
                         .compactMap { $0 }.joined(separator: " ")
-                    self?.address = addr
                 } else {
-                    self?.address = "無法取得地址"
+                    addr = "無法取得地址"
                 }
+                self?.address = addr
+                completion(addr)
             }
         }
     }

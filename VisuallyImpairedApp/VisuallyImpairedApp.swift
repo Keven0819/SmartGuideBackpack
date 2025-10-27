@@ -10,7 +10,7 @@ import UIKit
 import SmartGuideServices
 
 @main
-struct VisuallyImpairedAppApp: App {
+struct VisuallyImpairedApp: App {
 
     init() {
         let appearance = UITabBarAppearance()

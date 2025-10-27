@@ -73,7 +73,7 @@ class FamilyViewModel: ObservableObject {
                                 let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
                                 self.targetCoordinate = coordinate
                                 
-                                LocationService.shared.getAddressFromCoordinate(coordinate) { address in
+                                LocationService.shared.reverseGeocodeIfNeeded(coordinate) { address in
                                     DispatchQueue.main.async {
                                         let resolvedAddress = address ?? "未知位置"
                                         self.sosAddress = resolvedAddress
