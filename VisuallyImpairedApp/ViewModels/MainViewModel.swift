@@ -38,8 +38,8 @@ class MainViewModel: ObservableObject {
     // MARK: -- HTTP 客戶端
     
     let Location_SOS_Client = HTTPClient(baseURL: URL(string: "https://smart-guide-backend-beta.vercel.app")!)
-    let GPS_SOS_Client = HTTPClient(baseURL: URL(string: "https://gps-sos-backend.onrender.com")!)
-    let GPS_Guide_Client = HTTPClient(baseURL: URL(string: "https://7a2e5e9700e4.ngrok-free.app")!)
+    let GPS_SOS_Client = HTTPClient(baseURL: URL(string: "http://192.168.2.18:3001")!)
+    let GPS_Guide_Client = HTTPClient(baseURL: URL(string: "http://192.168.2.7:3001")!)
     
     // MARK: -- 初始化與訂閱
     
@@ -122,12 +122,13 @@ class MainViewModel: ObservableObject {
                 self.uploadStatus = "發送 SOS 失敗: \(error.localizedDescription)"
             }
         }
+        print("🔥 SOS button pressed!")
     }
     
     // MARK: -- WebSocket 連線與接收導航指示
     
     func connectWebSocket() {
-        let url = URL(string: "wss://7a2e5e9700e4.ngrok-free.app/ws/ios")!
+        let url = URL(string: "ws://192.168.2.18:3001/ws")!
         webSocketTask = URLSession.shared.webSocketTask(with: url)
         webSocketTask?.resume()
         receiveWebSocketMessage()

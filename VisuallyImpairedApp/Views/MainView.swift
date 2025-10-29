@@ -74,9 +74,9 @@ struct MainView: View {
                     }
                 }
                 .animation(.linear(duration: 0.016), value: particles)
+                .allowsHitTesting(false)
             }
             .allowsHitTesting(false)
-            .accessibilityHidden(true)
             
             VStack(spacing: 20) {
                 Spacer(minLength: 30)
@@ -180,6 +180,9 @@ struct MainView: View {
                     }
                 }
                 .padding(.top, 12)
+                .accessibilityLabel("緊急求救")
+                .accessibilityHint("按下以發送緊急求救訊號")
+                .accessibilityAddTraits(.isButton)
                 
                 Spacer(minLength: 20)
             }
@@ -263,8 +266,5 @@ struct SOSButton: View {
                 .shadow(color: Color.red.opacity(0.5), radius: 12, x: 0, y: 6)
         }
         .padding(.horizontal, 30)
-        .accessibilityLabel("SOS 緊急求救")
-        .accessibilityHint("按下以發送緊急求救訊號")
-        .buttonStyle(.plain)
     }
 }
