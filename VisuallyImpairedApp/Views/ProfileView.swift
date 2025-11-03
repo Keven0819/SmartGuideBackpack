@@ -46,7 +46,7 @@ struct ProfileView: View {
                             text: $profile.name,
                             keyboardType: .default,
                             textContentType: .name,
-                            accessibilityLabel: "姓名欄位",
+                            accessibilityLabel: "姓名",
                             accessibilityHint: "編輯您的姓名"
                         )
                         GlassTextField(
@@ -54,7 +54,7 @@ struct ProfileView: View {
                             text: $profile.phone,
                             keyboardType: .phonePad,
                             textContentType: .telephoneNumber,
-                            accessibilityLabel: "電話欄位",
+                            accessibilityLabel: "電話",
                             accessibilityHint: "輸入您的連絡電話"
                         )
                         GlassTextField(
@@ -62,7 +62,7 @@ struct ProfileView: View {
                             text: $profile.hospital,
                             keyboardType: .default,
                             textContentType: .organizationName,
-                            accessibilityLabel: "常駐醫院欄位",
+                            accessibilityLabel: "常駐醫院",
                             accessibilityHint: "輸入您常駐的醫院"
                         )
                     }
@@ -84,21 +84,21 @@ struct ProfileView: View {
                             title: "姓名",
                             text: $profile.emergencyContact.name,
                             keyboardType: .default,
-                            accessibilityLabel: "緊急聯絡人姓名欄位",
+                            accessibilityLabel: "緊急聯絡人姓名",
                             accessibilityHint: "輸入緊急聯絡人的姓名"
                         )
                         GlassTextField(
                             title: "電話",
                             text: $profile.emergencyContact.phone,
                             keyboardType: .phonePad,
-                            accessibilityLabel: "緊急聯絡人電話欄位",
+                            accessibilityLabel: "緊急聯絡電話",
                             accessibilityHint: "輸入緊急聯絡人的電話"
                         )
                         GlassTextField(
                             title: "關係",
                             text: $profile.emergencyContact.relation,
                             keyboardType: .default,
-                            accessibilityLabel: "緊急聯絡人關係欄位",
+                            accessibilityLabel: "緊急聯絡人關係",
                             accessibilityHint: "輸入您與緊急聯絡人的關係"
                         )
                     }

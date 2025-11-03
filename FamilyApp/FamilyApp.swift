@@ -11,22 +11,28 @@ import SmartGuideServices
 
 @main
 struct FamilyApp: App {
-    
-    // 強引用
     private let notificationService = NotificationService.shared
-    
+
     init() {
-        // 將通知中心的 delegate 指派為 notificationService，確保強引用且 delegate 實作完整
-        UNUserNotificationCenter.current().delegate = notificationService as UNUserNotificationCenterDelegate
+        UNUserNotificationCenter.current().delegate = notificationService
     }
-    
+
     var body: some Scene {
         WindowGroup {
-            HomeView()
-                .task {
-                    // 非同步請求通知權限
-                    await NotificationService.shared.requestAuthorization()
-                }
+            TabView {
+                HomeView()
+                    .tabItem {
+                        Label("首頁", systemImage: "house.fill")
+                    }
+
+                ChatView()
+                    .tabItem {
+                        Label("AI代理人", systemImage: "message.fill")
+                    }
+            }
+            .task {
+                await NotificationService.shared.requestAuthorization()
+            }
         }
     }
 }
