@@ -1,8 +1,8 @@
 //
-//  ChatView.swift
-//  SmartGuideBackpack
+// ChatView.swift
+// SmartGuideBackpack
 //
-//  Created by imac-3570 on 2025/11/3.
+// Created by imac-3570 on 2025/11/3.
 //
 
 import SwiftUI
@@ -12,16 +12,46 @@ struct Message: Identifiable {
     let text: String
     let isUser: Bool
     let time: String
+    let isHistoryRecord: Bool = false // 標記是否為歷史紀錄訊息
+}
+
+// 求救紀錄結構
+struct EmergencyRecord: Identifiable {
+    let id = UUID()
+    let date: String
+    let location: String
+    let status: String
+}
+
+// 導航紀錄結構
+struct NavigationRecord: Identifiable {
+    let id = UUID()
+    let date: String
+    let destination: String
 }
 
 struct ChatView: View {
     @State private var messages: [Message] = [
         Message(text: "哈囉！有什麼我可以幫忙的嗎？", isUser: false, time: "10:01 AM"),
-        Message(text: "幫我查詢明天的行程。", isUser: true, time: "10:02 AM"),
-        Message(text: "明天天氣晴朗，非常適合出門喔。", isUser: false, time: "10:02 AM")
+        Message(text: "你可以問我：\n• 查詢求救紀錄\n• 查詢導航紀錄\n• 最近的導航", isUser: false, time: "10:01 AM")
     ]
+    
     @State private var inputText = ""
     @State private var isTyping = false
+    
+    // 模擬的歷史紀錄資料
+    @State private var emergencyRecords: [EmergencyRecord] = [
+        // 可以在這裡添加測試資料
+        // EmergencyRecord(date: "2025-11-01", location: "台中市西區", status: "已處理")
+    ]
+    
+    @State private var navigationRecords: [NavigationRecord] = [
+        NavigationRecord(date: "2025-11-02", destination: "台中科技大學"),
+        NavigationRecord(date: "2025-11-01", destination: "台中火車站"),
+        NavigationRecord(date: "2025-10-30", destination: "逢甲夜市"),
+        NavigationRecord(date: "2025-10-29", destination: "太原火車站"),
+        NavigationRecord(date: "2025-10-28", destination: "台中公園")
+    ]
     
     var body: some View {
         ZStack {
@@ -152,7 +182,7 @@ struct ChatView: View {
                                         .stroke(
                                             inputText.isEmpty ?
                                             Color.gray.opacity(0.2) :
-                                                Color(red: 0.5, green: 0.5, blue: 0.95),
+                                            Color(red: 0.5, green: 0.5, blue: 0.95),
                                             lineWidth: 2
                                         )
                                 )
@@ -168,9 +198,9 @@ struct ChatView: View {
                                     .fill(
                                         LinearGradient(
                                             gradient: Gradient(colors: inputText.isEmpty ?
-                                                               [Color.gray.opacity(0.3), Color.gray.opacity(0.3)] :
-                                                                [Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.4, blue: 0.9)]
-                                                              ),
+                                                [Color.gray.opacity(0.3), Color.gray.opacity(0.3)] :
+                                                [Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.4, blue: 0.9)]
+                                            ),
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
@@ -221,18 +251,67 @@ struct ChatView: View {
             isTyping = true
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        // 檢測關鍵字並回應
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             withAnimation {
                 isTyping = false
             }
             
+            let responseText = detectKeywordAndRespond(userInput: trimmed)
+            
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 messages.append(Message(
-                    text: "這是 AI 模擬回覆，謝謝您的訊息！我會盡力協助您。",
+                    text: responseText,
                     isUser: false,
                     time: formatter.string(from: Date())
                 ))
             }
+        }
+    }
+    
+    // 關鍵字檢測與回應
+    func detectKeywordAndRespond(userInput: String) -> String {
+        let input = userInput.lowercased()
+        
+        // 檢測求救紀錄相關關鍵字
+        if input.contains("求救") || input.contains("緊急") || input.contains("emergency") {
+            return generateEmergencyRecordResponse()
+        }
+        
+        // 檢測導航紀錄相關關鍵字
+        if input.contains("導航") || input.contains("路線") || input.contains("navigation") || input.contains("最近") {
+            return generateNavigationRecordResponse()
+        }
+        
+        // 預設回應
+        return "我能幫您查詢：\n\n📍 導航紀錄\n🚨 求救紀錄\n\n請問需要查詢哪一項呢？"
+    }
+    
+    // 生成求救紀錄回應
+    func generateEmergencyRecordResponse() -> String {
+        if emergencyRecords.isEmpty {
+            return "🚨 求救紀錄\n\n無歷史求救紀錄\n\n系統目前沒有任何求救記錄，這是好消息！😊"
+        } else {
+            var response = "🚨 求救紀錄\n\n"
+            for (index, record) in emergencyRecords.enumerated() {
+                response += "\(index + 1). \(record.date)\n"
+                response += "   📍 位置：\(record.location)\n"
+                response += "   ✓ 狀態：\(record.status)\n\n"
+            }
+            return response.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+    
+    // 生成導航紀錄回應
+    func generateNavigationRecordResponse() -> String {
+        if navigationRecords.isEmpty {
+            return "📍 導航紀錄\n\n無導航紀錄"
+        } else {
+            var response = "📍 導航紀錄\n\n"
+            for (index, record) in navigationRecords.enumerated() {
+                response += "\(index + 1). \(record.date) 目的地：\(record.destination)\n"
+            }
+            return response.trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }
 }
@@ -290,15 +369,15 @@ struct MessageRow: View {
                                 Color.white
                             }
                         }
-                    )
-                    .clipShape(ChatBubbleShape(isUser: message.isUser))
-                    .shadow(
-                        color: message.isUser ?
-                        Color.blue.opacity(0.25) :
-                            Color.black.opacity(0.08),
-                        radius: message.isUser ? 10 : 6,
-                        x: 0,
-                        y: message.isUser ? 4 : 2
+                            .clipShape(ChatBubbleShape(isUser: message.isUser))
+                            .shadow(
+                                color: message.isUser ?
+                                Color.blue.opacity(0.25) :
+                                Color.black.opacity(0.08),
+                                radius: message.isUser ? 10 : 6,
+                                x: 0,
+                                y: message.isUser ? 4 : 2
+                            )
                     )
                 
                 // 時間戳記
@@ -399,7 +478,7 @@ struct ChatBubbleShape: Shape {
             roundedRect: rect,
             byRoundingCorners: isUser ?
             [.topLeft, .topRight, .bottomLeft] :
-                [.topRight, .topLeft, .bottomRight],
+            [.topRight, .topLeft, .bottomRight],
             cornerRadii: CGSize(width: 22, height: 22)
         )
         return Path(path.cgPath)
