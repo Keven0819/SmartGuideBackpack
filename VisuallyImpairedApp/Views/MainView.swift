@@ -213,7 +213,7 @@ struct StatusView: View {
     
     var body: some View {
         HStack {
-            if status == "位置上傳成功" || status == "SOS 已發送" {
+            if status == "位置即時更新" || status == "SOS 已發送" {
                 Image(systemName: "checkmark.circle.fill")
                     .resizable()
                     .frame(width: 24, height: 24)
@@ -228,7 +228,7 @@ struct StatusView: View {
             
             Text(status)
                 .font(.body)
-                .foregroundColor(status == "位置上傳成功" || status == "SOS 已發送" ? .green : .primary)
+                .foregroundColor(status == "位置即時更新" || status == "SOS 已發送" ? .green : .primary)
                 .accessibilityLabel(status)
         }
         .padding(.horizontal, 20)

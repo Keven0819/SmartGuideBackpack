@@ -11,282 +11,205 @@ import CoreLocation
 import SmartGuideServices
 
 class MainViewModel: ObservableObject {
+    // MARK: - Published Properties
+    @Published var currentAddress: String?
+    @Published var uploadStatus: String?
+    @Published var navigationSignal: String?
+    @Published var navigationInstruction: String?
     
-    // MARK: -- Published 屬性
-    
-    @Published var currentAddress: String? = "讀取中…"
-    @Published var uploadStatus: String? = nil
-    
-    // 用於接收 map/nomap/sos 等訊號
-    @Published var navigationSignal: String? = nil
-    
-    // 導航指示文字
-    @Published var navigationInstruction: String? = nil
-    
-    // MARK: -- 私有屬性
-    
-    private var cancellables = Set<AnyCancellable>()
-    private var timer: Timer?
-    
-    // WebSocket
+    // MARK: - WebSocket
     private var webSocketTask: URLSessionWebSocketTask?
+    private let wsURL = URL(string: "ws://192.168.1.11:3001/ws/ios")!
     
-    // 控制持續發送座標的狀態和任務
-    private var isSendingLocation = false
-    private var sendLocationTask: Task<Void, Never>? = nil
-    
-    // MARK: -- HTTP 客戶端
-    
-    let Location_SOS_Client = HTTPClient(baseURL: URL(string: "https://smart-guide-backend-beta.vercel.app")!)
-    let GPS_SOS_Client = HTTPClient(baseURL: URL(string: "http://192.168.2.18:3001")!)
-    let GPS_Guide_Client = HTTPClient(baseURL: URL(string: "http://192.168.2.7:3001")!)
-    
-    // MARK: -- 初始化與訂閱
+    // MARK: - Location
+    private var locationCancellable: AnyCancellable?
+    private var headingCancellable: AnyCancellable?
+    private var addressCancellable: AnyCancellable?
     
     init() {
-        // 訂閱 LocationService 的 address 改變
-        LocationService.shared.$address
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newAddress in
-                self?.currentAddress = newAddress ?? "無法取得地址"
-            }
-            .store(in: &cancellables)
-        
-        connectWebSocket()
+        observeLocation()
     }
     
-    // MARK: -- 定位更新
+    // MARK: - 觀察位置變化
+    func observeLocation() {
+        locationCancellable = LocationService.shared.$coordinate
+            .compactMap { $0 }
+            .sink { [weak self] coord in
+                self?.sendLocationUpdate(coord: coord)
+            }
+        
+        headingCancellable = LocationService.shared.$heading
+            .sink { [weak self] heading in
+                // heading 會隨著位置一起發送
+            }
+        
+        addressCancellable = LocationService.shared.$address
+            .sink { [weak self] address in
+                self?.currentAddress = address
+            }
+    }
     
     func startUpdating() {
-        timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
-            Task {
-                await self.sendLocation()
-            }
-        }
+        // LocationService 已經在背景運行
+        print("✅ 開始監聽位置")
     }
     
-    func sendLocation() async {
-        guard let coord = LocationService.shared.coordinate,
-              let heading = LocationService.shared.heading?.trueHeading else {
-            DispatchQueue.main.async {
-                self.uploadStatus = "定位或方位資料缺失，無法上傳"
-            }
-            return
-        }
-        
-        let payload: [String: Any] = [
-            "latitude": coord.latitude,
-            "longitude": coord.longitude,
-            "heading": heading
-        ]
-        
-        do {
-            let data = try JSONSerialization.data(withJSONObject: payload)
-            _ = try await Location_SOS_Client.post(path: "/location/update", body: data)
-            DispatchQueue.main.async {
-                self.uploadStatus = "位置上傳成功"
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.uploadStatus = "上傳失敗: \(error.localizedDescription)"
-            }
-        }
-    }
-    
-    // MARK: -- SOS 功能
-    
-    func sendSOS() async {
-        guard let coord = LocationService.shared.coordinate else {
-            DispatchQueue.main.async {
-                self.uploadStatus = "定位資料缺失，無法發送 SOS"
-            }
-            return
-        }
-        let payload: [String: Any] = [
-            "latitude": coord.latitude,
-            "longitude": coord.longitude
-        ]
-        do {
-            let data = try JSONSerialization.data(withJSONObject: payload)
-            _ = try await Location_SOS_Client.post(path: "/sos", body: data)
-            _ = try await GPS_SOS_Client.post(path: "/sos/button", body: data)
-            DispatchQueue.main.async {
-                self.uploadStatus = "SOS 已發送"
-                NotificationService.shared.scheduleLocalNotification(
-                    title: "SOS 已發送",
-                    body: "緊急求救訊息已傳送"
-                )
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.uploadStatus = "發送 SOS 失敗: \(error.localizedDescription)"
-            }
-        }
-        print("🔥 SOS button pressed!")
-    }
-    
-    // MARK: -- WebSocket 連線與接收導航指示
-    
+    // MARK: - WebSocket 連線
     func connectWebSocket() {
-        let url = URL(string: "ws://192.168.2.18:3001/ws")!
-        webSocketTask = URLSession.shared.webSocketTask(with: url)
+        webSocketTask = URLSession.shared.webSocketTask(with: wsURL)
         webSocketTask?.resume()
-        receiveWebSocketMessage()
+        print("🔌 WebSocket 已連線")
+        
+        // 開始接收訊息
+        receiveMessage()
     }
     
-    func receiveWebSocketMessage() {
-        webSocketTask?.receive() { [weak self] result in
+    func disconnectWebSocket() {
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        print("🔌 WebSocket 已斷線")
+    }
+    
+    // MARK: - 接收 WebSocket 訊息
+    private func receiveMessage() {
+        webSocketTask?.receive { [weak self] result in
             switch result {
             case .success(let message):
                 switch message {
                 case .string(let text):
-                    self?.handleWebSocketText(text)
-                default:
+                    self?.handleWebSocketMessage(text)
+                case .data(let data):
+                    if let text = String(data: data, encoding: .utf8) {
+                        self?.handleWebSocketMessage(text)
+                    }
+                @unknown default:
                     break
                 }
-                // 持續接收下一則訊息
-                self?.receiveWebSocketMessage()
-            case .failure(let error):
-                print("WebSocket 接收錯誤: \(error)")
-                // 如需要，可增加重連機制
-            }
-        }
-    }
-    
-    private func handleWebSocketText(_ text: String) {
-        DispatchQueue.main.async {
-            if text == "map" {
-                self.navigationSignal = text
-                self.startSendingLocationLoop()
-            } else if text == "nomap" {
-                self.navigationSignal = text
-                self.stopSendingLocationLoop()
-            } else if text == "sos" {
-                self.navigationSignal = text
                 
-                // 新增：非同步呼叫 sendSOS()
-                Task {
-                    await self.sendSOS()
-                }
-            } else {
-                if let data = text.data(using: .utf8),
-                   let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let instruction = dict["text"] as? String {
-                    self.navigationSignal = instruction
-                } else {
-                    self.navigationInstruction = text
-                }
+                // 繼續接收下一條訊息
+                self?.receiveMessage()
+                
+            case .failure(let error):
+                print("❌ WebSocket 接收錯誤: \(error)")
             }
         }
     }
     
-    private func startSendingLocationLoop() {
-        guard !isSendingLocation else { return }
-        isSendingLocation = true
-        sendLocationTask = Task {
-            while isSendingLocation && !Task.isCancelled {
-                await self.sendCurrentLocationViaWebSocket()
-                try? await Task.sleep(nanoseconds: 5_000_000_000) // 每5秒發送一次
-            }
-        }
-    }
-    
-    private func stopSendingLocationLoop() {
-        isSendingLocation = false
-        sendLocationTask?.cancel()
-        sendLocationTask = nil
-    }
-    
-    // 透過 WebSocket 傳送經緯度、朝向、時間戳
-    func sendCurrentLocationViaWebSocket() async {
-        guard let coord = LocationService.shared.coordinate,
-              let heading = LocationService.shared.heading?.trueHeading else {
+    // MARK: - 處理接收到的訊息
+    private func handleWebSocketMessage(_ text: String) {
+        guard let data = text.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = json["type"] as? String else {
+            // 處理舊格式（map/nomap/sos）
             DispatchQueue.main.async {
-                self.uploadStatus = "定位或方位資料缺失，無法上傳"
+                self.navigationSignal = text
             }
             return
         }
         
-        let formatter = ISO8601DateFormatter()
-            formatter.timeZone = TimeZone(identifier: "UTC")
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            let timestamp = formatter.string(from: Date())
+        DispatchQueue.main.async {
+            switch type {
+            case "location_ack":
+                if let status = json["status"] as? String, status == "ok" {
+                    self.uploadStatus = "位置即時更新"
+                }
+                
+            case "sos_ack":
+                if let status = json["status"] as? String {
+                    if status == "success" {
+                        self.uploadStatus = "SOS 已發送"
+                    } else {
+                        self.uploadStatus = json["message"] as? String ?? "SOS 發送失敗"
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        self.uploadStatus = nil
+                    }
+                }
+                
+            case "navigation_signal":
+                self.navigationSignal = json["signal"] as? String
+                
+            case "navigation_instruction":
+                self.navigationInstruction = json["instruction"] as? String
+                
+            case "clear_sos_ack":
+                // 家人端已清除 SOS 警報
+                print("✅ SOS 警報已被家人清除")
+                // 如果需要可以顯示提示
+                // self.uploadStatus = "SOS 已解除"
+
+            case "sos_cleared":
+                // 所有端都收到 SOS 已清除的通知
+                print("✅ SOS 已清除")
+                
+            default:
+                print("⚠️ 未知訊息類型: \(type)")
+            }
+        }
+    }
+    
+    // MARK: - 發送位置更新（透過 WebSocket）
+    private func sendLocationUpdate(coord: CLLocationCoordinate2D) {
+        guard let webSocketTask = webSocketTask else { return }
         
-        let data: [String: Any] = [
+        let heading = LocationService.shared.heading?.trueHeading ?? 0
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        
+        let message: [String: Any] = [
+            "type": "location",
             "lat": coord.latitude,
             "lng": coord.longitude,
             "heading": heading,
             "timestamp": timestamp
         ]
         
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: data)
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                let message = URLSessionWebSocketTask.Message.string(jsonString)
-                webSocketTask?.send(message) { error in
-                    if let error = error {
-                        DispatchQueue.main.async {
-                            self.uploadStatus = "WebSocket 發送錯誤: \(error.localizedDescription)"
-                        }
-                    } else {
-                        DispatchQueue.main.async {
-                            self.uploadStatus = "經緯度已透過 WebSocket 傳送"
-                        }
-                    }
-                }
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.uploadStatus = "JSON 序列化失敗: \(error.localizedDescription)"
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: message),
+              let jsonString = String(data: jsonData, encoding: .utf8) else {
+            return
+        }
+        
+        webSocketTask.send(.string(jsonString)) { error in
+            if let error = error {
+                print("❌ 位置發送失敗: \(error)")
             }
         }
     }
     
-    // MARK: -- 語音導航功能
-    
-    func startVoiceCommand(text: String) async {
-        let payload = ["text": text]
-        do {
-            let data = try JSONSerialization.data(withJSONObject: payload)
-            let responseData = try await GPS_Guide_Client.post(path: "/voice-command", body: data)
-            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any] {
-                DispatchQueue.main.async {
-                    self.uploadStatus = json["message"] as? String
+    // MARK: - 發送 SOS（透過 WebSocket）
+    func sendSOS() async {
+        guard let coord = LocationService.shared.coordinate else {
+            await MainActor.run {
+                uploadStatus = "無法取得位置"
+            }
+            return
+        }
+        
+        await MainActor.run {
+            uploadStatus = "正在發送 SOS..."
+        }
+        
+        let message: [String: Any] = [
+            "type": "sos",
+            "lat": coord.latitude,
+            "lng": coord.longitude
+        ]
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: message),
+              let jsonString = String(data: jsonData, encoding: .utf8) else {
+            await MainActor.run {
+                uploadStatus = "SOS 發送失敗"
+            }
+            return
+        }
+        
+        webSocketTask?.send(.string(jsonString)) { error in
+            if let error = error {
+                print("❌ SOS 發送失敗: \(error)")
+                Task { @MainActor in
+                    self.uploadStatus = "SOS 發送失敗"
                 }
             }
-        } catch {
-            DispatchQueue.main.async {
-                self.uploadStatus = "語音導航啟動失敗: \(error.localizedDescription)"
-            }
         }
-    }
-    
-    func fetchNavigationStatus() async {
-        do {
-            let data = try await GPS_Guide_Client.get(path: "/status")
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                DispatchQueue.main.async {
-                    self.navigationInstruction = json["instruction"] as? String
-                    self.uploadStatus = json["status"] as? String
-                }
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.uploadStatus = "獲取導航狀態失敗: \(error.localizedDescription)"
-            }
-        }
-    }
-    
-    // MARK: -- 清理
-    
-    deinit {
-        timer?.invalidate()
-        cancellables.forEach { $0.cancel() }
-        stopSendingLocationLoop()
-    }
-    
-    func disconnectWebSocket() {
-        webSocketTask?.cancel(with: .goingAway, reason: nil)
-        webSocketTask = nil
+        
+        // 等待後端的 sos_ack 回應（已在 handleWebSocketMessage 處理）
     }
 }

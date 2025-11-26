@@ -107,8 +107,10 @@ struct HomeView: View {
             }
             .navigationBarHidden(true)
             .onAppear {
-                vm.startPolling()
-                vm.startSOSPolling()
+                vm.connectWebSocket()
+            }
+            .onDisappear() {
+                vm.disconnectWebSocket()
             }
         }
     }
