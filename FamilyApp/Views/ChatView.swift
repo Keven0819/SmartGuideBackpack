@@ -1,8 +1,8 @@
 //
-// ChatView.swift
-// SmartGuideBackpack
+//  ChatView.swift
+//  SmartGuideBackpack
 //
-// Created by imac-3570 on 2025/11/3.
+//  Created by imac-3570 on 2025/11/3.
 //
 
 import SwiftUI
@@ -27,7 +27,7 @@ struct Message: Identifiable {
     let time: String
 }
 
-// 卡片類型
+// 卡片類型 (保留結構以便未來擴充，目前 Agent 主要回傳文字)
 enum CardType {
     case navigation(NavigationRecord)
     case weather(WeatherData)
@@ -49,16 +49,31 @@ struct NavigationRecord: Identifiable {
     let destination: String
 }
 
-// 天氣資料結構
+// 單日預報結構
+struct DailyForecast: Identifiable {
+    let id = UUID()
+    let date: String        // 日期
+    let condition: String   // 天氣狀況
+    let maxTemp: String     // 最高溫
+    let minTemp: String     // 最低溫
+    let rainProb: String    // 降雨機率
+    let comfort: String     // 舒適度
+    
+    // 根據天氣狀況自動判斷 Emoji
+    var emoji: String {
+        if condition.contains("雨") { return "🌧️" }
+        if condition.contains("雷") { return "⛈️" }
+        if condition.contains("雲") || condition.contains("陰") { return "☁️" }
+        if condition.contains("晴") { return "☀️" }
+        return "🌤️"
+    }
+}
+
+// 天氣資料總容器
 struct WeatherData: Identifiable {
     let id = UUID()
     let location: String
-    let temperature: String
-    let condition: String
-    let emoji: String
-    let humidity: String
-    let windSpeed: String
-    let feelsLike: String
+    let forecasts: [DailyForecast] // 這裡存放兩天的資料
 }
 
 // 訊息卡片結構
@@ -69,35 +84,10 @@ struct MessageCard: Identifiable {
 }
 
 struct ChatView: View {
-    @State private var chatItems: [ChatItem] = [
-        .message(Message(text: "哈囉！有什麼我可以幫忙的嗎？", isUser: false, time: "10:01 AM")),
-        .message(Message(text: "你可以問我：\n• 查詢求救紀錄\n• 查詢導航紀錄\n• 查詢天氣資訊", isUser: false, time: "10:01 AM"))
-    ]
+    // MARK: - ViewModel
+    @StateObject private var vm = ChatViewModel()
     
     @State private var inputText = ""
-    @State private var isTyping = false
-    
-    // 模擬的歷史紀錄資料
-    @State private var emergencyRecords: [EmergencyRecord] = []
-    
-    @State private var navigationRecords: [NavigationRecord] = [
-        NavigationRecord(date: "2025-11-02", destination: "台中科技大學"),
-        NavigationRecord(date: "2025-11-01", destination: "台中火車站"),
-        NavigationRecord(date: "2025-10-30", destination: "逢甲夜市"),
-        NavigationRecord(date: "2025-10-29", destination: "太原火車站"),
-        NavigationRecord(date: "2025-10-28", destination: "台中公園")
-    ]
-    
-    // 天氣假資料
-    @State private var weatherData = WeatherData(
-        location: "台中市西區",
-        temperature: "24°C",
-        condition: "多雲",
-        emoji: "⛅️",
-        humidity: "65%",
-        windSpeed: "12 km/h",
-        feelsLike: "23°C"
-    )
     
     var body: some View {
         ZStack {
@@ -112,6 +102,9 @@ struct ChatView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
+            .onTapGesture { // <--- 新增 1：點擊背景隱藏鍵盤
+                hideKeyboard()
+            }
             
             VStack(spacing: 0) {
                 // 頂部標題區
@@ -165,7 +158,8 @@ struct ChatView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 20) {
-                            ForEach(chatItems) { item in
+                            // 綁定 ViewModel 的資料
+                            ForEach(vm.chatItems) { item in
                                 switch item {
                                 case .message(let msg):
                                     MessageRow(message: msg)
@@ -185,7 +179,8 @@ struct ChatView: View {
                                 }
                             }
                             
-                            if isTyping {
+                            // 綁定 ViewModel 的打字狀態
+                            if vm.isTyping {
                                 TypingIndicator()
                                     .transition(.scale.combined(with: .opacity))
                             }
@@ -193,7 +188,14 @@ struct ChatView: View {
                         .padding(.vertical, 24)
                         .padding(.horizontal, 16)
                     }
-                    .onChange(of: chatItems.count) { _ in
+                    // 新增 2：點擊訊息列表的空白處也能隱藏鍵盤 (選擇性，但推薦加上)
+                    .onTapGesture {
+                        hideKeyboard()
+                    }
+                    .onChange(of: vm.chatItems.count) { _ in
+                        scrollToBottom(proxy: proxy)
+                    }
+                    .onAppear {
                         scrollToBottom(proxy: proxy)
                     }
                 }
@@ -286,7 +288,7 @@ struct ChatView: View {
     }
     
     func scrollToBottom(proxy: ScrollViewProxy) {
-        if let last = chatItems.last {
+        if let last = vm.chatItems.last {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.75)) {
                 proxy.scrollTo(last.id, anchor: .bottom)
             }
@@ -297,168 +299,12 @@ struct ChatView: View {
         let trimmed = inputText.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        let timeStr = formatter.string(from: Date())
+        // 呼叫 ViewModel 發送真實請求
+        vm.sendUserMessage(trimmed)
+        inputText = ""
         
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            chatItems.append(.message(Message(text: trimmed, isUser: true, time: timeStr)))
-            inputText = ""
-        }
-        
-        // 模擬 AI 正在輸入
-        withAnimation {
-            isTyping = true
-        }
-        
-        // 檢測關鍵字並回應
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation {
-                isTyping = false
-            }
-            
-            detectKeywordAndRespond(userInput: trimmed)
-        }
-    }
-    
-    // 關鍵字檢測與回應
-    func detectKeywordAndRespond(userInput: String) {
-        let input = userInput.lowercased()
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        let timeStr = formatter.string(from: Date())
-        
-        // 檢測求救紀錄相關關鍵字
-        if input.contains("求救") || input.contains("緊急") || input.contains("emergency") {
-            sendEmergencyRecords(timeStr: timeStr)
-            return
-        }
-        
-        // 檢測導航紀錄相關關鍵字
-        if input.contains("導航") || input.contains("路線") || input.contains("navigation") || input.contains("最近") {
-            sendNavigationRecords(timeStr: timeStr)
-            return
-        }
-        
-        // 檢測天氣相關關鍵字
-        if input.contains("天氣") || input.contains("氣溫") || input.contains("weather") || input.contains("溫度") {
-            sendWeatherInfo(timeStr: timeStr)
-            return
-        }
-        
-        // 預設回應
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            chatItems.append(.message(Message(
-                text: "我能幫您查詢：\n\n📍 導航紀錄\n🚨 求救紀錄\n🌤️ 天氣資訊\n\n請問需要查詢哪一項呢？",
-                isUser: false,
-                time: timeStr
-            )))
-        }
-    }
-    
-    // 發送求救紀錄卡片
-    func sendEmergencyRecords(timeStr: String) {
-        if emergencyRecords.isEmpty {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                chatItems.append(.message(Message(
-                    text: "目前沒有任何求救記錄，這是好消息！😊",
-                    isUser: false,
-                    time: timeStr
-                )))
-            }
-        } else {
-            // 先發送標題訊息
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                chatItems.append(.message(Message(
-                    text: "🚨 為您找到以下求救紀錄：",
-                    isUser: false,
-                    time: timeStr
-                )))
-            }
-            
-            // 逐個發送卡片
-            for (index, record) in emergencyRecords.enumerated() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index + 1) * 0.5) {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                        chatItems.append(.card(MessageCard(
-                            cardType: .emergency(record),
-                            time: timeStr
-                        )))
-                    }
-                }
-            }
-        }
-    }
-    
-    // 發送導航紀錄卡片
-    func sendNavigationRecords(timeStr: String) {
-        if navigationRecords.isEmpty {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                chatItems.append(.message(Message(
-                    text: "無導航紀錄",
-                    isUser: false,
-                    time: timeStr
-                )))
-            }
-        } else {
-            // 先發送標題訊息
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                chatItems.append(.message(Message(
-                    text: "📍 為您找到最近的導航紀錄：",
-                    isUser: false,
-                    time: timeStr
-                )))
-            }
-            
-            // 只取最新的3筆，逐個發送卡片
-            let recentRecords = Array(navigationRecords.prefix(3))
-            for (index, record) in recentRecords.enumerated() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index + 1) * 0.5) {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                        chatItems.append(.card(MessageCard(
-                            cardType: .navigation(record),
-                            time: timeStr
-                        )))
-                    }
-                }
-            }
-            
-            // 如果有更多紀錄，延遲顯示提示（確保在所有卡片之後）
-            if navigationRecords.count > 3 {
-                let delayTime = Double(recentRecords.count + 1) * 0.5
-                DispatchQueue.main.asyncAfter(deadline: .now() + delayTime) {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                        chatItems.append(.message(Message(
-                            text: "還有 \(navigationRecords.count - 3) 筆較早的紀錄",
-                            isUser: false,
-                            time: timeStr
-                        )))
-                    }
-                }
-            }
-        }
-    }
-    
-    // 發送天氣資訊卡片
-    func sendWeatherInfo(timeStr: String) {
-        // 先發送標題訊息
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            chatItems.append(.message(Message(
-                text: "🌤️ 為您查詢當前天氣：",
-                isUser: false,
-                time: timeStr
-            )))
-        }
-        
-        // 延遲發送天氣卡片
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                chatItems.append(.card(MessageCard(
-                    cardType: .weather(weatherData),
-                    time: timeStr
-                )))
-            }
-        }
+        // 新增 3：發送後自動收起鍵盤
+        hideKeyboard()
     }
 }
 
@@ -467,7 +313,9 @@ struct MessageCardRow: View {
     let card: MessageCard
     
     var body: some View {
-        HStack(alignment: .bottom, spacing: 12) {
+        // 修改 1：將 alignment 改為 .top (原本是 .bottom)
+        HStack(alignment: .top, spacing: 12) {
+            
             // AI 頭像
             ZStack {
                 Circle()
@@ -488,6 +336,7 @@ struct MessageCardRow: View {
                     .foregroundColor(.white)
                     .font(.system(size: 18, weight: .semibold))
             }
+            .padding(.top, 4) // 修改 2：微調頂部位置，讓頭像跟卡片標題視覺平行
             
             VStack(alignment: .leading, spacing: 6) {
                 // 卡片內容
@@ -551,88 +400,160 @@ struct NavigationCardView: View {
         formatter.dateFormat = "yyyy-MM-dd"
         if let date = formatter.date(from: dateString) {
             formatter.dateFormat = "MM月dd日 (EEE)"
-            formatter.locale = Locale(identifier: "zh_TW")
+            // formatter.locale = Locale(identifier: "zh_TW") // 若需要繁體中文顯示
             return formatter.string(from: date)
         }
         return dateString
     }
 }
 
-// MARK: - Weather Card View
+// MARK: - Updated Weather Card View (格線佈局版)
+
 struct WeatherCardView: View {
     let data: WeatherData
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // 標題
-            HStack {
-                Text(data.emoji)
-                    .font(.system(size: 32))
-                Text(data.location)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(Color(red: 0.2, green: 0.3, blue: 0.5))
-            }
-            
-            // 主要溫度
-            HStack(alignment: .top, spacing: 4) {
-                Text(data.temperature)
-                    .font(.system(size: 48, weight: .thin))
-                    .foregroundColor(Color(red: 0.3, green: 0.5, blue: 0.9))
+        VStack(spacing: 0) {
+            // 1. 標題區
+            HStack(spacing: 6) {
+                Image(systemName: "mappin.and.ellipse")
+                    .foregroundColor(Color(red: 0.9, green: 0.3, blue: 0.3))
+                    .font(.system(size: 16))
                 
-                Text(data.condition)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .padding(.top, 18)
+                Text(data.location)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundColor(Color(red: 0.2, green: 0.3, blue: 0.5))
+                
+                Spacer() // 標題靠左，右邊留白
             }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 20)
+            .background(Color(red: 0.98, green: 0.99, blue: 1.0)) // 極淡的藍色背景區隔標題
             
             Divider()
             
-            // 詳細資訊
-            VStack(spacing: 10) {
-                WeatherDetailRow(icon: "thermometer", label: "體感溫度", value: data.feelsLike)
-                WeatherDetailRow(icon: "humidity.fill", label: "濕度", value: data.humidity)
-                WeatherDetailRow(icon: "wind", label: "風速", value: data.windSpeed)
+            // 2. 列表區
+            VStack(spacing: 0) {
+                ForEach(Array(data.forecasts.enumerated()), id: \.element.id) { index, forecast in
+                    ForecastRow(forecast: forecast)
+                    
+                    // 分隔線
+                    if index < data.forecasts.count - 1 {
+                        Divider()
+                            .padding(.leading, 20) // 讓分隔線從左邊留點空隙，比較優雅
+                    }
+                }
             }
         }
-        .padding(20)
-        .frame(maxWidth: 280)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.white,
-                    Color(red: 0.95, green: 0.97, blue: 1.0)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        // 修改：使用 maxWidth 讓它在小螢幕自動縮小，大螢幕保持寬度
+        .frame(maxWidth: 330) // 加寬卡片，讓資訊不擁擠
+        .background(Color.white)
         .cornerRadius(20)
-        .shadow(color: Color.blue.opacity(0.15), radius: 12, x: 0, y: 4)
+        .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 4)
     }
 }
 
-struct WeatherDetailRow: View {
-    let icon: String
-    let label: String
-    let value: String
+// 單日天氣行組件 (修正長文字顯示問題)
+struct ForecastRow: View {
+    let forecast: DailyForecast
     
     var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(Color(red: 0.5, green: 0.6, blue: 0.9))
-                .frame(width: 24)
+        HStack(alignment: .center, spacing: 16) {
+            // --- 左欄：日期與圖示 (固定寬度 60) ---
+            VStack(spacing: 6) {
+                Text(formatDate(forecast.date))
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(Color(red: 0.5, green: 0.6, blue: 0.8))
+                    )
+                
+                Text(forecast.emoji)
+                    .font(.system(size: 34))
+            }
+            .frame(width: 60) // 固定左側寬度
             
-            Text(label)
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-            
-            Spacer()
-            
-            Text(value)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(Color(red: 0.3, green: 0.4, blue: 0.6))
+            // --- 右欄：詳細資訊 ---
+            VStack(spacing: 8) {
+                // 上排：天氣狀況 (左) + 溫度範圍 (右)
+                // 改用 alignment: .top 確保如果天氣狀況換行，溫度還是會對齊第一行的高度
+                HStack(alignment: .firstTextBaseline) {
+                    
+                    Text(forecast.condition)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(red: 0.2, green: 0.25, blue: 0.35))
+                        .lineLimit(2) // 關鍵修改 1：允許最多顯示兩行
+                        .minimumScaleFactor(0.8) // 關鍵修改 2：字太長時允許稍微縮小
+                        .fixedSize(horizontal: false, vertical: true) // 允許垂直延展
+                    
+                    Spacer(minLength: 8) // 保持最小間距
+                    
+                    // 溫度
+                    HStack(spacing: 0) {
+                        Text(forecast.minTemp)
+                        Text("~")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                            .padding(.horizontal, 2)
+                        Text(forecast.maxTemp)
+                    }
+                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                    .foregroundColor(Color(red: 0.2, green: 0.5, blue: 0.9))
+                    .layoutPriority(1) // 關鍵修改 3：給予溫度較高優先權，確保它不被壓縮
+                }
+                
+                // 下排：降雨機率 (左) + 舒適度 (右)
+                HStack {
+                    // 降雨
+                    HStack(spacing: 4) {
+                        Image(systemName: "umbrella.fill")
+                            .font(.system(size: 10))
+                        Text(forecast.rainProb)
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(Color(red: 0.4, green: 0.5, blue: 0.6))
+                    
+                    Spacer()
+                    
+                    // 舒適度
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.fill.questionmark")
+                            .font(.system(size: 10))
+                        Text(forecast.comfort)
+                            .font(.system(size: 12, weight: .regular))
+                    }
+                    .foregroundColor(Color(red: 0.5, green: 0.5, blue: 0.55))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color(red: 0.95, green: 0.95, blue: 0.96))
+                    .cornerRadius(4)
+                }
+            }
         }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 16)
+    }
+    
+    // MARK: - 日期格式化 (保持不變)
+    func formatDate(_ dateString: String) -> String {
+        if dateString.contains("天") { return dateString }
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        if let date = inputFormatter.date(from: dateString) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "M/d"
+            return outputFormatter.string(from: date)
+        }
+        inputFormatter.dateFormat = "MM-dd"
+        if let date = inputFormatter.date(from: dateString) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "M/d"
+            return outputFormatter.string(from: date)
+        }
+        return dateString
     }
 }
 
@@ -752,13 +673,13 @@ struct MessageRow: View {
             }
             
             if message.isUser {
-                // 用戶頭像 - 修正這裡！
+                // 用戶頭像
                 ZStack {
                     Circle()
                         .fill(
                             LinearGradient(
                                 gradient: Gradient(colors: [
-                                    Color(red: 0.3, green: 0.8, blue: 0.7),  // 改成 blue: 0.7
+                                    Color(red: 0.3, green: 0.8, blue: 0.7),
                                     Color(red: 0.4, green: 0.6, blue: 0.9)
                                 ]),
                                 startPoint: .topLeading,
@@ -848,3 +769,12 @@ struct ChatBubbleShape: Shape {
         return Path(path.cgPath)
     }
 }
+
+// 加在檔案最下方
+#if canImport(UIKit)
+extension View {
+    func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+#endif

@@ -8,12 +8,25 @@
 import SwiftUI
 import SmartGuideServices
 import CoreLocation
+import UIKit // 需要引入 UIKit 來設定外觀
 
 struct HomeView: View {
     
     // MARK: - ViewModel
     
     @StateObject private var vm = FamilyViewModel()
+
+    // MARK: - Init (新增的部分)
+    // 在這裡設定底部 TabBar 的外觀，強制變為不透明
+    init() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground() // 設定為不透明背景
+        appearance.backgroundColor = UIColor.systemBackground // 設定背景色 (隨系統深淺色變換，或是用 .white)
+        
+        // 套用到標準外觀與捲動邊緣外觀
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
 
     // MARK: - Main View
     
@@ -23,6 +36,9 @@ struct HomeView: View {
                 if vm.targetCoordinate != nil {
                     MapView(targetCoordinate: $vm.targetCoordinate)
                         .edgesIgnoringSafeArea(.all)
+                        // 注意：因為我們要讓 TabBar 不透明，
+                        // 如果 MapView 被 TabBar 擋住，可以考慮移除 .bottom 的忽略安全區域
+                        // 但通常為了地圖滿版，我們還是會留著
                 } else {
                     ProgressView("等待定位...")
                         .progressViewStyle(CircularProgressViewStyle(tint: .gray))
@@ -54,7 +70,7 @@ struct HomeView: View {
                         .padding(.horizontal, 24)
                         .padding(.top, 40)
 
-                    Spacer(minLength: 10)  // 標題與警報間距緊湊但不黏著
+                    Spacer(minLength: 10)
                     
                     if let sosAddress = vm.sosAddress {
                         VStack(spacing: 16) {
@@ -101,16 +117,13 @@ struct HomeView: View {
                     } else {
                         Color.clear
                             .frame(height: 140)
-                            .padding(.bottom, 20) // 保留底部空間，避免跳動
+                            .padding(.bottom, 20)
                     }
                 }
             }
             .navigationBarHidden(true)
             .onAppear {
                 vm.connectWebSocket()
-            }
-            .onDisappear() {
-                vm.disconnectWebSocket()
             }
         }
     }
