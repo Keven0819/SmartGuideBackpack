@@ -34,7 +34,7 @@ class ChatService {
     
     init() {
         // 假設你的 n8n 位置
-        self.httpClient = HTTPClient(baseURL: URL(string: "http://192.168.2.7:5678")!)
+        self.httpClient = HTTPClient(baseURL: URL(string: "http://192.168.100.4:5678")!)
     }
     
     func sendMessage(userQuery: String) async throws -> String {

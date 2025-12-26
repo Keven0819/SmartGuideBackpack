@@ -19,7 +19,7 @@ class MainViewModel: ObservableObject {
     
     // MARK: - WebSocket
     private var webSocketTask: URLSessionWebSocketTask?
-    private let wsURL = URL(string: "ws://192.168.2.7:3001/ws/ios")!
+    private let wsURL = URL(string: "ws://192.168.100.4:3001/ws/ios")!
     
     // MARK: - Location
     private var locationCancellable: AnyCancellable?

@@ -22,7 +22,7 @@ class FamilyViewModel: ObservableObject {
     private var reconnectTimer: Timer?
     
     // MARK: -- WebSocket URL
-    private let wsURL = URL(string: "ws://192.168.2.7:3001/ws/family")!
+    private let wsURL = URL(string: "ws://192.168.100.4:3001/ws/family")!
     
     // MARK: -- HTTP 客戶端（保留作為備用）
     let Location_SOS_Client = HTTPClient(baseURL: URL(string: "https://smart-guide-backend-beta.vercel.app")!)
