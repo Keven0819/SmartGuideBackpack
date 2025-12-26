@@ -10,10 +10,14 @@ import CoreLocation
 import SmartGuideServices
 
 class FamilyViewModel: ObservableObject {
+    // MARK: -- Singleton
+    static let shared = FamilyViewModel()
+    
     // MARK: -- Published 屬性
     @Published var targetCoordinate: CLLocationCoordinate2D?
     @Published var sosAddress: String?
     @Published var connectionStatus: String = "未連線"
+    @Published var fallAnalysisList: [FallAnalysis] = []
     
     // MARK: -- 私有屬性
     private var webSocketTask: URLSessionWebSocketTask?
@@ -22,7 +26,7 @@ class FamilyViewModel: ObservableObject {
     private var reconnectTimer: Timer?
     
     // MARK: -- WebSocket URL
-    private let wsURL = URL(string: "ws://192.168.100.4:3001/ws/family")!
+    private let wsURL = URL(string: "ws://172.20.10.11:3001/ws/family")!
     
     // MARK: -- HTTP 客戶端（保留作為備用）
     let Location_SOS_Client = HTTPClient(baseURL: URL(string: "https://smart-guide-backend-beta.vercel.app")!)
@@ -146,6 +150,10 @@ class FamilyViewModel: ObservableObject {
                 UserDefaults.standard.removeObject(forKey: self.sosTimestampKey)
                 print("✅ SOS 警報已清除")
                 
+            // ========== 跌倒分析 ==========
+            case "fall_gsensor_analysis":
+                self.handleFallAnalysis(json: json)
+                
             default:
                 print("⚠️ 未知訊息類型: \(type)")
             }
@@ -184,6 +192,43 @@ class FamilyViewModel: ObservableObject {
             print("🔄 嘗試重新連線...")
             self?.connectWebSocket()
         }
+    }
+    
+    // MARK: -- 處理跌倒分析
+    private func handleFallAnalysis(json: [String: Any]) {
+        guard let timestamp = json["timestamp"] as? Int,
+              let sceneDescription = json["scene_description"] as? String,
+              let situationAnalysis = json["situation_analysis"] as? String,
+              let messageToUser = json["message_to_user"] as? String else {
+            print("⚠️ 跌倒分析資料解析失敗")
+            return
+        }
+        
+        let imageBase64 = json["image_base64"] as? String ?? ""
+        
+        let fallAnalysis = FallAnalysis(
+            type: "fall_gsensor_analysis",
+            timestamp: timestamp,
+            imageBase64: imageBase64,
+            sceneDescription: sceneDescription,
+            situationAnalysis: situationAnalysis,
+            messageToUser: messageToUser
+        )
+        
+        self.fallAnalysisList.insert(fallAnalysis, at: 0)
+        
+        // 發送本地通知
+        NotificationService.shared.scheduleLocalNotification(
+            title: "⚠️ 跌倒偵測警報",
+            body: messageToUser
+        )
+        
+        print("🚨 收到跌倒分析: \(sceneDescription)")
+    }
+    
+    // MARK: -- 清除跌倒分析記錄
+    func clearFallAnalysisList() {
+        fallAnalysisList.removeAll()
     }
     
     // MARK: -- 清理

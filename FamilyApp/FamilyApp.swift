@@ -29,6 +29,11 @@ struct FamilyApp: App {
                     .tabItem {
                         Label("AI代理人", systemImage: "message.fill")
                     }
+                
+                FallAnalysisView()
+                    .tabItem {
+                        Label("跌倒分析", systemImage: "figure.fall")
+                    }
             }
             .task {
                 await NotificationService.shared.requestAuthorization()

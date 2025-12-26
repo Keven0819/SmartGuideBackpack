@@ -14,7 +14,7 @@ struct HomeView: View {
     
     // MARK: - ViewModel
     
-    @StateObject private var vm = FamilyViewModel()
+    @ObservedObject private var vm = FamilyViewModel.shared
 
     // MARK: - Init (新增的部分)
     // 在這裡設定底部 TabBar 的外觀，強制變為不透明
