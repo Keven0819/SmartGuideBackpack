@@ -1,69 +1,95 @@
-# SmartGuide Backpack - 智能導航背包系統
+# SmartGuide Backpack 智能導航背包系統
 
-[English](#english) | [繁體中文](#繁體中文)
+> ⚠️ **專案狀態說明**：目前的後端伺服器已下線。部分依賴雲端運算的功能（如 AI 智能助理、即時跌倒分析報告、遠端資料同步）目前將無法正常運作。本專案目前主要用於展示 **前端介面設計 (UI/UX)**、**本地導航邏輯** 以及 **輔助功能 (Accessibility)** 的實作參考。
 
----
+## 🌟 專案簡介
 
-<a name="english"></a>
-## English
+**SmartGuide Backpack** 是一個專為視障人士設計的整合式生態系統。我們透過結合「智慧導航背包」硬體與兩款專屬的手機應用程式，致力於解決視障者在獨自外出時的導航、安全監控以及緊急求救需求。
 
-**SmartGuide Backpack** is an integrated ecosystem designed to enhance the mobility and safety of visually impaired individuals. The system consists of a hardware "Guide Backpack" and two dedicated mobile applications.
-
-### Project Structure
-- **VisuallyImpairedApp/**: The client-side app for visually impaired users, providing navigation instructions and emergency triggers.
-- **FamilyApp/**: The companion app for family members/caregivers to monitor location, safety status, and fall alerts.
-- **SmartGuideServices/**: Shared logic, networking (HTTP/WebSocket), and core services used by both applications.
-
-### Key Features
-
-#### 1. Visually Impaired App
-- **Voice Navigation:** Real-time audio and haptic feedback for spatial awareness.
-- **Instant SOS:** One-touch emergency signaling to pre-configured contacts.
-- **Location Awareness:** Continuous tracking with semantic address reporting.
-- **Accessibility First:** Fully optimized for VoiceOver and high-contrast visuals.
-
-#### 2. Family App
-- **Live Map Tracking:** Monitor the user's location in real-time with hybrid map views.
-- **Fall Detection Analysis:** Receive AI-processed fall alerts including scene photos and situational reports.
-- **Emergency Hub:** Instant notifications for SOS triggers with one-tap navigation to the user.
-- **AI Smart Assistant:** A chat interface for historical data retrieval (weather, navigation history, and emergency logs).
-
-### Technical Stack
-- **Language:** Swift 5.x
-- **UI Framework:** SwiftUI
-- **Maps:** MapKit
-- **Real-time Sync:** WebSockets & RESTful APIs
-- **Architecture:** MVVM (Model-View-ViewModel)
+本系統的核心目標是讓視障者能更自信地踏出家門，同時讓家屬能透過遠端科技隨時掌握家人的安全狀態。
 
 ---
 
-<a name="繁體中文"></a>
-## 繁體中文
+## 🛠 系統組成
 
-**SmartGuide Backpack (智能導航背包)** 是一個整合式生態系統，旨在提升視障人士的行動力與安全性。本系統由硬體「導航背包」以及兩款專屬行動應用程式組成。
+整個系統由三個核心模組構成：
 
-### 專案結構
-- **VisuallyImpairedApp/**：視障使用者端 App，提供導航指引與緊急求救功能。
-- **FamilyApp/**：親友端 App，用於監控位置、安全狀態以及接收跌倒警報。
-- **SmartGuideServices/**：共享邏輯、網路通訊 (HTTP/WebSocket) 及兩款 App 通用的核心服務。
+1.  **視障者專用 App (VisuallyImpairedApp)**
+    *   **定位：** 視障使用者的隨身導航助手。
+    *   **重點：** 極致的輔助功能 (VoiceOver) 優化與簡單直覺的觸控操作。
 
-### 主要功能
+2.  **親友守護 App (FamilyApp)**
+    *   **定位：** 家屬的遠端守護中心。
+    *   **重點：** 即時位置監控、AI 跌倒分析報告與智能語音助理。
 
-#### 1. 視障者端應用程式
-- **語音導航：** 提供即時的音訊與觸覺回饋，增強空間感知。
-- **即時 SOS：** 一鍵發送緊急訊號至預設聯絡人。
-- **位置感知：** 持續追蹤並提供語義化的地址回報。
-- **輔助功能優先：** 全面針對 VoiceOver 與高對比度視覺進行優化。
+3.  **核心服務中心 (SmartGuideServices)**
+    *   **定位：** 支撐系統運行的底層技術。
+    *   **重點：** 處理精準定位、即時通訊 (WebSocket) 與系統通知。
 
-#### 2. 親友端應用程式
-- **即時地圖追蹤：** 透過混合地圖介面即時監控使用者位置。
-- **跌倒偵測分析：** 接收經 AI 處理的跌倒警報，包含現場照片與情況報告。
-- **緊急中心：** SOS 觸發時立即通知，並支援一鍵導航至使用者所在地。
-- **AI 智能助理：** 提供聊天介面以查詢歷史數據（天氣、導航記錄與緊急日誌）。
+---
 
-### 技術棧
-- **開發語言：** Swift 5.x
-- **UI 框架：** SwiftUI
-- **地圖服務：** MapKit
-- **即時同步：** WebSockets 與 RESTful APIs
-- **架構設計：** MVVM (Model-View-ViewModel)
+## 🔄 核心運作流程
+
+為了讓您更了解系統如何運作，以下是幾個關鍵場景的處理流程：
+
+### 1. 智慧導航流程
+*   **使用者發起：** 視障者透過語音或 App 設定目的地。
+*   **導航指引：** 系統結合地圖數據，透過「語音播報」與「背包震動（觸覺回饋）」引導使用者。
+*   **即時校正：** 背包感測器即時偵測前方障礙物，並調整導航路徑或發出警示。
+
+### 2. 緊急求救 (SOS) 流程
+*   **觸發：** 當視障者感到危險時，按下 App 或背包上的緊急按鈕。
+*   **通知：** 系統立即透過雲端發送高優先權通知至所有關聯的親友手機。
+*   **救援：** 親友端 App 自動開啟地圖並顯示導航路線，指引親友最快抵達使用者所在地。
+
+### 3. AI 跌倒偵測與分析流程
+*   **偵測：** 背包內建的感測器偵測到異常摔倒動作。
+*   **影像擷取：** 背包鏡頭自動拍攝現場照片。
+*   **AI 分析：** 照片傳送至後端 AI 進行分析（判斷受傷嚴重程度、周遭環境是否危險）。
+*   **報告送出：** 親友端收到包含「分析報告」與「現場照片」的通知，協助判斷是否需叫救護車。
+
+---
+
+## ✨ 亮點功能
+
+### 🧑‍🦯 視障者端
+*   **語義化定位：** 不只顯示經緯度，更會告訴使用者：「您現在位於台北市信義區忠孝東路附近」。
+*   **全語音操作：** 針對 iOS VoiceOver 深度優化，所有按鈕與狀態皆有清楚的語音引導。
+*   **觸覺導航：** 透過穿戴式背包的震動，讓使用者在嘈雜環境也能感知方向。
+
+### 👨‍👩‍👧‍👦 親友端
+*   **AI 智能守護助理：** 內建聊天介面，家屬可以直接問：「爸爸今天去過哪裡？」或「現在那邊天氣如何？」，AI 會自動調閱紀錄並回答。
+*   **即時監控地圖：** 透過混合式地圖，隨時查看使用者的移動軌跡。
+*   **跌倒日誌：** 自動記錄每一次的異常事件，方便後續就醫參考。
+
+---
+
+## 💻 技術架構
+
+*   **開發語言：** Swift 5 (現代化、安全且高效)。
+*   **使用者介面：** SwiftUI (提供流暢且具備輔助功能的介面)。
+*   **架構模式：** MVVM (確保程式碼易於維護與擴展)。
+*   **後端整合：** 結合 n8n 自動化流程與 AI 大型語言模型進行數據處理。
+*   **地圖技術：** 整合 Apple MapKit 提供最精確的地理資訊。
+
+---
+
+## 🚀 快速開始
+
+### 開發環境要求
+*   macOS 14.0 或以上版本
+*   Xcode 15.0 或以上版本
+*   iOS 17.0 或以上實機（建議，以測試感測器功能）
+
+### 安裝步驟
+1.  複製此專案到您的電腦：
+    ```bash
+    git clone https://github.com/YourRepo/SmartGuideBackpack.git
+    ```
+2.  進入專案資料夾並開啟 `SmartGuideBackpack.xcodeproj`。
+3.  選擇 `VisuallyImpairedApp` 或 `FamilyApp` 目標 (Target)。
+4.  點擊 Xcode 的 **Run** 按鈕即可在模擬器或實機運行。
+
+---
+
+**SmartGuide - 讓愛與科技同行，成為視障者的第二雙眼。**
